@@ -1,0 +1,1201 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Flash'Memo — Mémorisation active</title>
+<style>
+  :root{
+    --bg1:#7c3aed; --bg2:#ec4899; --bg3:#f59e0b;
+    --card:#ffffff; --ink:#1f2937; --muted:#6b7280;
+    --good:#10b981; --bad:#ef4444; --accent:#7c3aed;
+    font-family:'Segoe UI', system-ui, -apple-system, sans-serif;
+    color:var(--ink);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    min-height:100vh;
+    background:linear-gradient(135deg,var(--bg1) 0%,var(--bg2) 55%,var(--bg3) 100%);
+    background-attachment:fixed;
+    display:flex; flex-direction:column; align-items:center;
+    padding:24px 16px 60px;
+  }
+  h1{color:#fff; font-size:2.2rem; letter-spacing:1px; text-shadow:0 3px 10px rgba(0,0,0,.25); margin-bottom:4px;}
+  .tagline{color:#ffe9f3; margin-bottom:26px; font-weight:600; opacity:.9;}
+  .panel{
+    width:100%; max-width:680px; background:var(--card); border-radius:24px;
+    padding:28px; box-shadow:0 18px 45px rgba(0,0,0,.28);
+    animation:pop .35s ease;
+  }
+  @keyframes pop{from{transform:scale(.96) translateY(12px);opacity:0}to{transform:none;opacity:1}}
+  .hidden{display:none !important;}
+  .btn{
+    border:none; cursor:pointer; font-weight:700; border-radius:14px;
+    padding:13px 22px; font-size:1rem; color:#fff;
+    background:linear-gradient(135deg,var(--bg1),var(--bg2));
+    box-shadow:0 6px 16px rgba(124,58,237,.4);
+    transition:transform .15s, filter .15s;
+  }
+  .btn:hover{transform:translateY(-2px); filter:brightness(1.08);}
+  .btn:active{transform:translateY(0);}
+  .btn.ghost{background:#f3f0ff; color:var(--accent); box-shadow:none; border:2px solid #e5defa;}
+  .btn.small{padding:8px 14px; font-size:.85rem; border-radius:10px;}
+  .btn.danger{background:linear-gradient(135deg,#ef4444,#b91c1c); box-shadow:0 6px 16px rgba(239,68,68,.4);}
+  input[type=text], input[type=number], textarea, select{
+    width:100%; padding:12px 14px; border:2px solid #e5e7eb; border-radius:12px;
+    font-size:1rem; font-family:inherit; background:#fafafa; color:var(--ink);
+  }
+  input:focus, textarea:focus, select:focus{outline:none; border-color:var(--accent); background:#fff;}
+  label{font-weight:700; font-size:.85rem; color:var(--muted); display:block; margin:14px 0 6px;}
+  .row{display:flex; gap:12px; flex-wrap:wrap; align-items:center;}
+  .deckItem{
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:14px 16px; border-radius:14px; background:#f9f7ff; border:2px solid #ece7fb;
+    margin-bottom:10px; flex-wrap:wrap;
+  }
+  .deckItem b{font-size:1.05rem;}
+  .badge{background:var(--accent); color:#fff; border-radius:999px; padding:3px 10px; font-size:.75rem; font-weight:700;}
+  .flash{
+    perspective:1200px; margin:0 auto; width:100%; max-width:560px; height:300px; cursor:pointer;
+  }
+  .flashInner{
+    position:relative; width:100%; height:100%; transition:transform .55s;
+    transform-style:preserve-3d;
+  }
+  .flash.flipped .flashInner{transform:rotateY(180deg);}
+  .face{
+    position:absolute; inset:0; backface-visibility:hidden; border-radius:24px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:26px; text-align:center; font-size:1.25rem; font-weight:600;
+  }
+  .face.front{background:linear-gradient(135deg,#7c3aed,#4f46e5); color:#fff; box-shadow:0 14px 35px rgba(79,70,229,.45);}
+  .face.back{background:linear-gradient(135deg,#f59e0b,#ef4444); color:#fff; transform:rotateY(180deg); box-shadow:0 14px 35px rgba(239,68,68,.4);}
+  .face .hint{position:absolute; bottom:12px; font-size:.75rem; opacity:.8; font-weight:400;}
+  .choices{display:grid; gap:10px; margin-top:18px;}
+  .choice{
+    padding:13px; border-radius:12px; border:2px solid #e5e7eb; background:#fff;
+    font-weight:700; cursor:pointer; font-size:1rem; transition:all .15s;
+  }
+  .choice:hover{border-color:var(--accent); background:#f5f2ff;}
+  .choice.good{border-color:var(--good); background:#d1fae5; color:#065f46;}
+  .choice.bad{border-color:var(--bad); background:#fee2e2; color:#991b1b;}
+  .timer{
+    font-variant-numeric:tabular-nums; font-weight:800; font-size:1.3rem;
+    background:#1f2937; color:#fbbf24; padding:8px 16px; border-radius:999px;
+  }
+  .stats{display:flex; gap:18px; justify-content:center; margin:14px 0; flex-wrap:wrap; font-weight:700; color:var(--muted);}
+  .stats span b{color:var(--ink);}
+  .pill{display:inline-flex; gap:6px; align-items:center;}
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    background:#1f2937; color:#fff; padding:12px 22px; border-radius:999px;
+    font-weight:700; box-shadow:0 8px 20px rgba(0,0,0,.3); animation:pop .3s ease; z-index:50;
+  }
+  .shake{animation:shake .4s;}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+  .cardRow{display:flex; gap:8px; align-items:flex-start; padding:10px; border-bottom:1px solid #f1eefb;}
+  .cardRow .txt{flex:1;}
+  .cardRow .txt small{color:var(--muted);}
+  .back{background:none; border:none; color:var(--accent); font-weight:800; cursor:pointer; font-size:.9rem; padding:6px 10px;}
+  #historyTable th{text-align:center;}
+  #historyTable td{text-align:center; padding:8px; border-top:1px solid #f1eefb;}
+  .bigResult{font-size:3rem; text-align:center; margin:10px 0;}
+  h2{text-align:center; margin-bottom:18px;}
+  .seg{display:flex; gap:8px; flex-wrap:wrap; justify-content:center;}
+  .seg .choice{min-width:110px;}
+  .typedWrap{display:flex; gap:10px; margin-top:18px; flex-wrap:wrap;}
+  .typedWrap input[type=text]{flex:1; min-width:200px; font-size:1.05rem; padding:14px 16px;}
+  .typedWrap .btn{box-shadow:0 6px 16px rgba(16,185,129,.4); background:linear-gradient(135deg,#10b981,#059669);}
+
+  /* ===== JEU EN PLEIN ÉCRAN ===== */
+  #viewGame{
+    position:fixed; inset:0; z-index:100; max-width:none; width:100%;
+    height:100vh; height:100dvh; border-radius:0;
+    display:flex; flex-direction:column; justify-content:space-between;
+    padding:16px clamp(12px,4vw,48px); overflow:hidden;
+  }
+  #viewGame.hidden{display:none !important;}
+  #viewGame .flash{height:clamp(160px, 32vh, 300px); max-width:820px; flex-shrink:0;}
+  #viewGame .face{font-size:clamp(1rem, 2.6vw, 1.6rem); padding:18px 24px;}
+  #viewGame .stats{margin:8px 0; flex-shrink:0;}
+  /* Grille QCM : toutes les réponses visibles, elle occupe tout l'espace restant */
+  #viewGame .choices{
+    flex:1; display:grid; gap:clamp(8px,1.4vh,16px);
+    grid-template-columns:repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+    align-content:stretch; margin-top:10px; min-height:0; max-width:1000px;
+    width:100%; margin-left:auto; margin-right:auto;
+  }
+  #viewGame .choice{
+    display:flex; align-items:center; justify-content:center; text-align:center;
+    min-height:clamp(48px, 8vh, 92px); font-size:clamp(.95rem, 2vw, 1.25rem);
+    border-radius:16px; padding:10px 16px; overflow-wrap:anywhere;
+  }
+  #viewGame #answerZone{flex:1; display:flex; flex-direction:column; min-height:0;}
+  #viewGame .typedWrap{flex:1; align-items:flex-start; justify-content:center; margin-top:12px;}
+  #viewGame .typedWrap input[type=text]{max-width:560px; font-size:1.15rem;}
+
+  /* ===== FLASH PLEIN ÉCRAN ===== */
+  .screenFlash{
+    position:fixed; inset:0; z-index:200; pointer-events:none; opacity:0;
+  }
+  .screenFlash.flashGood{
+    background:radial-gradient(circle, rgba(16,185,129,.55), rgba(16,185,129,.25));
+    animation:flashFade .6s ease-out;
+  }
+  .screenFlash.flashBad{
+    background:radial-gradient(circle, rgba(239,68,68,.55), rgba(239,68,68,.25));
+    animation:flashFade .6s ease-out;
+  }
+  @keyframes flashFade{
+    0%{opacity:0} 20%{opacity:1} 100%{opacity:0}
+  }
+
+  /* ===== BARRE DE TEMPS (3 s) ===== */
+  .timerBarWrap{
+    width:100%; max-width:1000px; margin:8px auto 0; height:8px;
+    background:#e9e4f8; border-radius:999px; overflow:hidden; flex-shrink:0;
+  }
+  .timerBar{
+    height:100%; width:100%; border-radius:999px;
+    background:linear-gradient(90deg,#10b981,#f59e0b,#ef4444);
+    transform-origin:left;
+  }
+  .timerBar.run{animation:timerShrink var(--cardTime,3s) linear forwards;}
+  .timerBar.paused{animation-play-state:paused;}
+  @keyframes timerShrink{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+
+  /* ===== CONFETTIS ===== */
+  #confettiLayer{position:fixed; inset:0; pointer-events:none; z-index:300; overflow:hidden;}
+  .confetti{
+    position:absolute; top:-12px; will-change:transform, opacity;
+  }
+  @keyframes confettiFall{
+    0%{transform:translate(0,0) rotate(0deg); opacity:1;}
+    100%{transform:translate(var(--dx), var(--dy)) rotate(var(--rot)); opacity:0;}
+  }
+  .confetti.pop{animation:confettiFall var(--dur) cubic-bezier(.25,.6,.4,1) forwards;}
+  @keyframes bounceIn{
+    0%{transform:scale(.3); opacity:0;}
+    60%{transform:scale(1.15); opacity:1;}
+    100%{transform:scale(1);}
+  }
+  .bounceIn{animation:bounceIn .6s ease-out;}
+  @keyframes wiggle{
+    0%,100%{transform:rotate(-6deg) scale(1.1);}
+    50%{transform:rotate(6deg) scale(1.15);}
+  }
+  .wiggle{animation:wiggle .5s ease-in-out infinite;}
+  @keyframes emojiRain{
+    0%{transform:translateY(-10vh) rotate(0deg); opacity:0;}
+    12%{opacity:1;}
+    100%{transform:translateY(110vh) rotate(720deg); opacity:1;}
+  }
+  .emojiRain{
+    position:fixed; top:-8vh; font-size:2rem; pointer-events:none; z-index:290;
+    animation:emojiRain var(--dur) linear forwards;
+  }
+
+  /* ===== IMAGES DES CARTES ===== */
+  .cardImg{
+    max-width:min(55vw, 300px); max-height:55%; object-fit:contain;
+    border-radius:12px; margin-bottom:10px; background:rgba(255,255,255,.25);
+    padding:4px;
+  }
+  #viewGame .cardImg{max-height:45%;}
+  .imgEditorRow{display:flex; align-items:center; gap:10px; margin-top:8px; flex-wrap:wrap;}
+  .imgThumb{
+    width:70px; height:52px; object-fit:cover; border-radius:8px; border:2px solid #e5defa;
+  }
+  .imgEditorRow input[type=text]{flex:1; min-width:150px;}
+</style>
+</head>
+<body>
+<div id="confettiLayer"></div>
+
+
+<h1>🧠 Flash'Memo</h1>
+<div class="tagline">Mémorise activement, révise en t'amusant !</div>
+
+<!-- ================= ACCUEIL : LISTE DES PAQUETS ================= -->
+<div class="panel" id="viewHome">
+  <h2>📚 Mes paquets</h2>
+  <div id="deckList"></div>
+  <div class="row" style="margin-top:18px;">
+    <button class="btn" onclick="UI.newDeck()">➕ Nouveau paquet</button>
+    <button class="btn ghost" onclick="UI.importDeck()">📥 Importer un paquet</button>
+  </div>
+</div>
+
+<!-- ================= CRÉATION / ÉDITION DE PAQUET ================= -->
+<div class="panel hidden" id="viewEditor">
+  <div class="row" style="justify-content:space-between">
+    <button class="back" onclick="UI.goHome()">← Retour</button>
+    <span class="badge" id="editorCount">0 carte</span>
+  </div>
+  <h2>✏️ <span id="editorTitle">Nouveau paquet</span></h2>
+  <label>Nom du paquet</label>
+  <input type="text" id="deckNameInput" placeholder="Ex : Capitales du monde" />
+
+  <div id="cardsEditor"></div>
+
+  <div class="row" style="margin-top:16px;">
+    <button class="btn" onclick="UI.addCard()">➕ Ajouter une carte</button>
+    <button class="btn ghost" onclick="UI.addQCM()">🎯 Ajouter un QCM</button>
+    <button class="btn ghost" onclick="UI.shuffleEditor()">🔀 Mélanger</button>
+  </div>
+  <div class="row" style="margin-top:16px; justify-content:flex-end;">
+    <button class="btn danger small" id="deleteDeckBtn" onclick="UI.deleteDeck()">🗑 Supprimer le paquet</button>
+    <button class="btn" onclick="UI.saveDeck()">💾 Enregistrer</button>
+  </div>
+</div>
+
+<!-- ================= CHOIX DU MODE DE JEU ================= -->
+<div class="panel hidden" id="viewMode">
+  <div class="row" style="justify-content:space-between">
+    <button class="back" onclick="UI.goHome()">← Retour</button>
+    <span class="badge" id="modeDeckName"></span>
+  </div>
+  <h2>🎮 Choisis ton mode</h2>
+
+  <label style="text-align:center;">⏱ Temps de réponse par carte</label>
+  <div class="row" style="justify-content:center;" id="cardTimeRow">
+    <select id="cardTimeSelect" style="max-width:180px;">
+      <option value="2000">2 secondes</option>
+      <option value="3000" selected>3 secondes</option>
+      <option value="5000">5 secondes</option>
+      <option value="8000">8 secondes</option>
+      <option value="12000">12 secondes</option>
+      <option value="custom">Personnalisé…</option>
+      <option value="0">Illimité ⏸️</option>
+    </select>
+    <input type="number" id="cardTimeCustom" min="1" max="300" step="1" placeholder="Secondes" style="max-width:110px;" class="hidden"/>
+  </div>
+
+  <div class="deckItem" style="flex-direction:column; align-items:stretch; background:#fff7fb; border-color:#fbd0e6;">
+    <b>⚡ Mode Survie</b>
+    <span style="color:var(--muted); font-size:.9rem;">
+      Écris la réponse de chaque carte (ou choisis-la en QCM) le plus vite possible.
+      <b style="color:var(--bad)">Une seule erreur = fin de partie !</b>
+    </span>
+    <div class="row"><button class="btn" onclick="UI.startGame('survie',0)">⚡ Jouer</button></div>
+  </div>
+
+  <div class="deckItem" style="flex-direction:column; align-items:stretch; background:#f7fbff; border-color:#cfe4fb;">
+    <b>⏱️ Mode Chrono</b>
+    <span style="color:var(--muted); font-size:.9rem;">
+      Temps limité. Écris tes réponses (ou choisis-les en QCM).
+      <b style="color:var(--good)">+1 point</b> par bonne réponse…
+      mais <b style="color:var(--bad)">une erreur et tu perds TOUS tes points !</b>
+    </span>
+    <div class="row">
+      <button class="btn small" onclick="UI.startGame('chrono',60)">1 min</button>
+      <button class="btn small" onclick="UI.startGame('chrono',120)">2 min</button>
+      <button class="btn small" onclick="UI.startGame('chrono',180)">3 min</button>
+      <button class="btn small" onclick="UI.startGame('chrono',300)">5 min</button>
+      <button class="btn ghost small" onclick="UI.resetScores()">♻️ Réinitialiser les scores</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= JEU ================= -->
+<div class="panel hidden" id="viewGame">
+  <div class="row" style="justify-content:space-between">
+    <span class="badge" id="gameDeckName"></span>
+    <div class="row">
+      <span class="timer" id="gameTimer">00:00</span>
+      <button class="btn small danger" onclick="UI.quitGame()">✖ Quitter</button>
+    </div>
+  </div>
+  <div class="stats">
+    <span>Cartes restantes : <b id="statRemaining">0</b></span>
+    <span>Score : <b id="statScore">0</b></span>
+    <span>Série : <b id="statStreak">0</b></span>
+  </div>
+
+  <div class="timerBarWrap"><div class="timerBar" id="timerBar"></div></div>
+
+  <div class="flash" id="flash" onclick="UI.reveal()">
+    <div class="flashInner">
+      <div class="face front">
+        <img id="questionImg" class="cardImg hidden" alt="Image de la question" />
+        <span id="questionText"></span><span class="hint">Clique ou appuie sur Espace pour retourner 👆</span>
+      </div>
+      <div class="face back"><span id="answerText"></span><span class="hint">Es-tu sûr de toi ? 😏</span></div>
+    </div>
+  </div>
+
+  <div id="answerZone"></div>
+</div>
+
+<!-- ================= RÉSULTAT ================= -->
+<div class="panel hidden" id="viewResult">
+  <h2 id="resultTitle">🎉 Bravo !</h2>
+  <div class="bigResult" id="resultEmoji">🏆</div>
+  <div class="stats" id="resultStats" style="font-size:1.1rem;"></div>
+  <div class="row" style="justify-content:center; margin-top:14px;">
+    <button class="btn" onclick="UI.replay()">🔄 Rejouer</button>
+    <button class="btn ghost" onclick="UI.goHome()">🏠 Accueil</button>
+    <button class="btn ghost" onclick="UI.resetScores()">♻️ Réinitialiser les scores</button>
+  </div>
+
+  <h2 style="margin-top:28px;">📊 Historique & progression</h2>
+  <div id="progressSummary" class="row" style="justify-content:center;"></div>
+  <div id="progressChart" class="row" style="justify-content:center; align-items:flex-end; gap:10px; height:120px; margin:18px 0;"></div>
+  <div id="evolutionMsg" style="text-align:center; font-weight:700; margin-bottom:10px;"></div>
+  <div id="historyTable" style="overflow-x:auto;"></div>
+</div>
+
+<!-- ================= IMPORT ================= -->
+<div class="panel hidden" id="viewImport">
+  <div class="row" style="justify-content:space-between">
+    <button class="back" onclick="UI.goHome()">← Retour</button>
+  </div>
+  <h2>📥 Importer un paquet</h2>
+  <p style="color:var(--muted); margin-bottom:12px;">Colle ici le code du paquet reçu (ou choisis un fichier .json) :</p>
+  <textarea id="importArea" rows="7" placeholder='{"name":"Mon paquet","cards":[...]}'></textarea>
+  <div class="row" style="margin-top:14px;">
+    <button class="btn" onclick="UI.doImport()">✔️ Importer</button>
+    <label class="btn ghost" style="cursor:pointer;">📁 Fichier
+      <input type="file" accept=".json,application/json" style="display:none" onchange="UI.importFile(event)">
+    </label>
+  </div>
+</div>
+
+<!-- ================= EXPORT ================= -->
+<div class="panel hidden" id="viewExport">
+  <div class="row" style="justify-content:space-between">
+    <button class="back" onclick="UI.goHome()">← Retour</button>
+  </div>
+  <h2>📤 Exporter « <span id="exportName"></span> »</h2>
+  <p style="color:var(--muted); margin-bottom:12px;">Partage ce code avec tes camarades :</p>
+  <textarea id="exportArea" rows="7" readonly></textarea>
+  <div class="row" style="margin-top:14px;">
+    <button class="btn" onclick="UI.copyExport()">📋 Copier le code</button>
+    <button class="btn ghost" onclick="UI.downloadExport()">💾 Télécharger (.json)</button>
+  </div>
+</div>
+
+<script>
+/* ============ MODÈLE ============ */
+const STORE_KEY = 'flashmemo.decks.v1';
+let store = load();
+
+function load(){
+  try{
+    const s = JSON.parse(localStorage.getItem(STORE_KEY)) || {decks:[]};
+    s.decks = s.decks || [];
+    s.stats = s.stats || {};
+    return s;
+  }
+  catch(e){ return {decks:[], stats:{}}; }
+}
+function persist(){ localStorage.setItem(STORE_KEY, JSON.stringify(store)); }
+function uid(){ return Math.random().toString(36).slice(2,10); }
+/* ============ CONFETTIS & FIESTA ============ */
+const CONFETTI_COLORS=['#7c3aed','#ec4899','#f59e0b','#10b981','#3b82f6','#ef4444','#fde047'];
+function confettiBurst(x, y, count){
+  const layer=document.getElementById('confettiLayer');
+  for(let i=0;i<count;i++){
+    const p=document.createElement('div');
+    p.className='confetti pop';
+    const size=6+Math.random()*8;
+    const color=CONFETTI_COLORS[Math.floor(Math.random()*CONFETTI_COLORS.length)];
+    const angle=Math.random()*Math.PI*2;
+    const dist=60+Math.random()*140;
+    const dx=Math.cos(angle)*dist;
+    const dy=Math.sin(angle)*dist + 160; /* légère gravité */
+    p.style.cssText=`left:${x}px; top:${y}px; width:${size}px; height:${size*(Math.random()<.5?1:.5)}px;
+      background:${color}; border-radius:${Math.random()<.5?'50%':'2px'};
+      --dx:${dx}px; --dy:${dy}px; --rot:${(Math.random()*720-360)}deg;
+      --dur:${(700+Math.random()*500)}ms;`;
+    layer.appendChild(p);
+    setTimeout(()=>p.remove(), 1400);
+  }
+}
+function confettiSideRain(count, duration){
+  const layer=document.getElementById('confettiLayer');
+  for(let i=0;i<count;i++){
+    const p=document.createElement('div');
+    p.className='confetti pop';
+    const size=6+Math.random()*8;
+    const color=CONFETTI_COLORS[Math.floor(Math.random()*CONFETTI_COLORS.length)];
+    const x = Math.random()<.5
+      ? Math.random()*window.innerWidth*.25          /* côté gauche */
+      : window.innerWidth - Math.random()*window.innerWidth*.25; /* côté droit */
+    p.style.cssText=`left:${x}px; top:${Math.random()*40}%; width:${size}px; height:${size}px;
+      background:${color}; border-radius:50%;
+      --dx:${(Math.random()*160-80)}px; --dy:${(180+Math.random()*220)}px;
+      --rot:${(Math.random()*720-360)}deg; --dur:${(900+Math.random()*duration)}ms;`;
+    layer.appendChild(p);
+    setTimeout(()=>p.remove(), 900+duration+600);
+  }
+}
+function emojiRain(emojis, count, duration){
+  for(let i=0;i<count;i++){
+    const el=document.createElement('div');
+    el.className='emojiRain';
+    el.textContent=emojis[Math.floor(Math.random()*emojis.length)];
+    el.style.left=Math.random()*100+'vw';
+    el.style.setProperty('--dur', (2000+Math.random()*duration)+'ms');
+    el.style.animationDelay=(Math.random()*1200)+'ms';
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(), 2000+duration+1400);
+  }
+}
+function bigFiesta(score){
+  /* explosion centrale */
+  confettiBurst(window.innerWidth/2, window.innerHeight/2, 120);
+  /* pluies latérales décalées */
+  confettiSideRain(70, 1800);
+  setTimeout(()=>confettiSideRain(70, 1800), 700);
+  setTimeout(()=>confettiSideRain(60, 1800), 1400);
+  /* pluie d'emojis fiesta */
+  emojiRain(['🎉','🎊','✨','🎈','🥳','🏆','⭐','💃','🕺','🎺'], 26, 2500);
+  if(score>=10){
+    setTimeout(()=>emojiRain(['🏆','🥇','🎉','👑','💫'], 18, 2000), 800);
+  }
+}
+
+function toast(msg){
+  const t = document.createElement('div');
+  t.className='toast'; t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 2200);
+}
+
+/* ============ ÉTAT ============ */
+let currentDeckId = null;   // deck en édition
+let game = null;            // état de la partie
+
+/* ============ UI ============ */
+const UI = {
+  show(id){
+    ['viewHome','viewEditor','viewMode','viewGame','viewResult','viewImport','viewExport']
+      .forEach(v => document.getElementById(v).classList.toggle('hidden', v!==id));
+  },
+
+  goHome(){
+    persist();
+    UI.renderDecks();
+    UI.show('viewHome');
+  },
+
+  /* ----- liste des paquets ----- */
+  renderDecks(){
+    const list = document.getElementById('deckList');
+    if(!store.decks.length){
+      list.innerHTML = '<p style="text-align:center;color:var(--muted);padding:30px 0;">Aucun paquet pour l\'instant.<br>Crée ton premier paquet pour commencer ! 🚀</p>';
+      return;
+    }
+    list.innerHTML = '';
+    store.decks.forEach(d=>{
+      const el = document.createElement('div');
+      el.className='deckItem';
+      el.innerHTML = `<div><b>${escapeHtml(d.name)}</b> <span class="badge">${d.cards.length} carte${d.cards.length>1?'s':''}</span></div>`;
+      const acts = document.createElement('div');
+      acts.className='row';
+      const bPlay=document.createElement('button'); bPlay.className='btn small'; bPlay.textContent='🎮 Jouer';
+      bPlay.onclick=()=>UI.openMode(d.id);
+      const bEdit=document.createElement('button'); bEdit.className='btn small ghost'; bEdit.textContent='✏️ Modifier';
+      bEdit.onclick=()=>UI.openEditor(d.id);
+      const bExp=document.createElement('button'); bExp.className='btn small ghost'; bExp.textContent='📤 Exporter';
+      bExp.onclick=()=>UI.openExport(d.id);
+      acts.append(bPlay,bEdit,bExp);
+      el.appendChild(acts);
+      list.appendChild(el);
+    });
+  },
+
+  /* ----- édition ----- */
+  newDeck(){
+    currentDeckId = null;
+    document.getElementById('editorTitle').textContent='Nouveau paquet';
+    document.getElementById('deckNameInput').value='';
+    document.getElementById('deleteDeckBtn').classList.add('hidden');
+    editorCards = [];
+    UI.renderEditor();
+    UI.show('viewEditor');
+  },
+
+  openEditor(id){
+    const d = store.decks.find(x=>x.id===id); if(!d) return;
+    currentDeckId = id;
+    document.getElementById('editorTitle').textContent='Modifier le paquet';
+    document.getElementById('deckNameInput').value = d.name;
+    document.getElementById('deleteDeckBtn').classList.remove('hidden');
+    editorCards = JSON.parse(JSON.stringify(d.cards));
+    UI.renderEditor();
+    UI.show('viewEditor');
+  },
+
+  addCard(){
+    editorCards.push({id:uid(), type:'classic', q:'', a:''});
+    UI.renderEditor(true);
+  },
+
+  addQCM(){
+    editorCards.push({id:uid(), type:'qcm', q:'', choices:['','','',''] , correct:0});
+    UI.renderEditor(true);
+  },
+
+  shuffleEditor(){
+    for(let i=editorCards.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [editorCards[i],editorCards[j]]=[editorCards[j],editorCards[i]];
+    }
+    toast('Paquet mélangé 🔀');
+    UI.renderEditor();
+  },
+
+  renderEditor(scroll){
+    const zone = document.getElementById('cardsEditor');
+    const cnt = document.getElementById('editorCount');
+    cnt.textContent = editorCards.length + ' carte' + (editorCards.length>1?'s':'');
+    zone.innerHTML='';
+    if(!editorCards.length){
+      zone.innerHTML='<p style="text-align:center;color:var(--muted);padding:16px 0;">Ajoute ta première carte ! 👆</p>';
+      return;
+    }
+    editorCards.forEach((c,i)=>{
+      const row = document.createElement('div');
+      row.className='cardRow';
+
+      const txt = document.createElement('div'); txt.className='txt';
+      const lq = document.createElement('label'); lq.textContent = `Carte ${i+1} — Question (recto)`;
+      const q = document.createElement('input'); q.type='text'; q.placeholder='Question…'; q.value=c.q;
+      q.oninput = e=>{ editorCards[i].q = e.target.value; };
+
+      txt.append(lq,q);
+
+      /* ----- image de la question (optionnelle) ----- */
+      const imgRow=document.createElement('div'); imgRow.className='imgEditorRow';
+      if(c.img){
+        const thumb=document.createElement('img'); thumb.className='imgThumb'; thumb.src=c.img; thumb.alt='';
+        imgRow.append(thumb);
+      }
+      const btnImg=document.createElement('button'); btnImg.className='btn ghost small';
+      btnImg.textContent = c.img ? '🖼 Changer l\'image' : '🖼 Ajouter une image';
+      btnImg.onclick=()=>{
+        const fileInp=document.createElement('input'); fileInp.type='file';
+        fileInp.accept='image/*';
+        fileInp.onchange=()=>{
+          const f=fileInp.files[0]; if(!f) return;
+          if(f.size > 900*1024){ toast('Image trop lourde (max ~900 Ko).'); return; }
+          const r=new FileReader();
+          r.onload=()=>{ editorCards[i].img=r.result; UI.renderEditor(); };
+          r.readAsDataURL(f);
+        };
+        fileInp.click();
+      };
+      imgRow.append(btnImg);
+      const urlInp=document.createElement('input'); urlInp.type='text';
+      urlInp.placeholder='…ou colle une URL d\'image (https://…)';
+      if(c.img && !c.img.startsWith('data:')) urlInp.value=c.img;
+      urlInp.onchange=e=>{ editorCards[i].img = e.target.value.trim() || undefined; UI.renderEditor(); };
+      imgRow.append(urlInp);
+      if(c.img){
+        const btnRm=document.createElement('button'); btnRm.className='btn danger small'; btnRm.textContent='🗑';
+        btnRm.title='Retirer l\'image';
+        btnRm.onclick=()=>{ editorCards[i].img=undefined; UI.renderEditor(); };
+        imgRow.append(btnRm);
+      }
+      txt.append(imgRow);
+
+      if(c.type==='qcm'){
+        const la = document.createElement('label'); la.textContent='Réponses proposées (coche la bonne ✅)';
+        txt.append(la);
+        c.choices.forEach((ch,k)=>{
+          const line=document.createElement('div'); line.className='row'; line.style.marginBottom='6px';
+          const radio=document.createElement('input');
+          radio.type='radio'; radio.name='c'+i; radio.checked = c.correct===k;
+          radio.style.width='auto'; radio.style.display='flex';
+          radio.onchange = ()=>{ editorCards[i].correct = k; UI.renderEditor(); };
+          const inp=document.createElement('input'); inp.type='text'; inp.style.flex='1';
+          inp.placeholder = (k===c.correct?'Bonne réponse':'Choix '+(k+1));
+          inp.value=ch;
+          inp.oninput = e=>{ editorCards[i].choices[k]=e.target.value; };
+          const del=document.createElement('button'); del.className='btn ghost small'; del.textContent='🗑';
+          del.onclick=()=>{ if(editorCards[i].choices.length<=2){ toast('Un QCM doit avoir au moins 2 réponses.'); return;}
+            editorCards[i].choices.splice(k,1);
+            if(editorCards[i].correct===k) editorCards[i].correct=0;
+            else if(editorCards[i].correct>k) editorCards[i].correct--;
+            UI.renderEditor(); };
+          line.append(radio,inp,del);
+          txt.append(line);
+        });
+        const addCh=document.createElement('button'); addCh.className='btn ghost small'; addCh.textContent='➕ Réponse';
+        addCh.onclick=()=>{ if(editorCards[i].choices.length>=6){ toast('Maximum 6 réponses.'); return;}
+          editorCards[i].choices.push(''); UI.renderEditor(); };
+        txt.append(addCh);
+      } else {
+        const la = document.createElement('label'); la.textContent='Réponse (verso)';
+        const a = document.createElement('input'); a.type='text'; a.placeholder='Réponse…'; a.value=c.a;
+        a.oninput = e=>{ editorCards[i].a = e.target.value; };
+        txt.append(la,a);
+      }
+      row.append(txt);
+
+      const del=document.createElement('button'); del.className='btn danger small'; del.textContent='🗑';
+      del.onclick=()=>{ editorCards.splice(i,1); UI.renderEditor(); };
+      row.append(del);
+
+      zone.append(row);
+    });
+    if(scroll) zone.lastElementChild.scrollIntoView({behavior:'smooth', block:'nearest'});
+  },
+
+  saveDeck(){
+    const name = document.getElementById('deckNameInput').value.trim();
+    if(!name){ toast('Donne un nom à ton paquet !'); return; }
+    const cards = editorCards.filter(c=>c.q.trim() && (c.type==='classic' ? c.a.trim() : c.choices.filter(x=>x.trim()).length>=2))
+      .map(c=>({ id:c.id, type:c.type, q:c.q, a:c.a||'', choices:c.choices||[], correct:c.correct||0, img:c.img||null }));
+    if(!cards.length){ toast('Ajoute au moins une carte complète.'); return; }
+    if(currentDeckId){
+      const d = store.decks.find(x=>x.id===currentDeckId);
+      d.name=name; d.cards=cards;
+    } else {
+      store.decks.push({id:uid(), name, cards});
+    }
+    persist(); toast('Paquet enregistré 💾'); UI.goHome();
+  },
+
+  deleteDeck(){
+    if(!currentDeckId) return;
+    if(!confirm('Supprimer définitivement ce paquet ?')) return;
+    store.decks = store.decks.filter(d=>d.id!==currentDeckId);
+    persist(); toast('Paquet supprimé'); UI.goHome();
+  },
+
+  /* ----- mode de jeu ----- */
+  openMode(id){
+    const d=store.decks.find(x=>x.id===id); if(!d) return;
+    document.getElementById('modeDeckName').textContent = d.name;
+    currentDeckId=id;
+    restoreCardTime();
+    UI.show('viewMode');
+  },
+
+  /* ----- export / import ----- */
+  openExport(id){
+    const d=store.decks.find(x=>x.id===id); if(!d) return;
+    document.getElementById('exportName').textContent=d.name;
+    document.getElementById('exportArea').value = JSON.stringify({flashmemo:1, name:d.name, cards:d.cards}, null, 2);
+    UI.show('viewExport');
+  },
+  copyExport(){
+    const a=document.getElementById('exportArea');
+    a.select();
+    try{ navigator.clipboard ? navigator.clipboard.writeText(a.value) : document.execCommand('copy'); }catch(e){}
+    toast('Code copié 📋');
+  },
+  downloadExport(){
+    const a=document.getElementById('exportArea').value;
+    const blob=new Blob([a],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement('a');
+    link.href=url; link.download='paquet-flashmemo.json';
+    link.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  },
+  importDeck(){ UI.show('viewImport'); },
+  importFile(ev){
+    const f=ev.target.files[0]; if(!f) return;
+    const r=new FileReader();
+    r.onload=()=>{ document.getElementById('importArea').value=r.result; UI.doImport(); };
+    r.readAsText(f);
+  },
+  doImport(){
+    let data;
+    try{ data=JSON.parse(document.getElementById('importArea').value); }
+    catch(e){ toast('❌ Code invalide.'); return; }
+    if(!data || !Array.isArray(data.cards)){ toast('❌ Ce paquet n\'est pas reconnu.'); return; }
+    const cards = data.cards
+      .filter(c=>c && c.q && (c.type==='qcm' ? Array.isArray(c.choices) : c.a))
+      .map(c=>({ id:uid(), type: c.type==='qcm'?'qcm':'classic', q:String(c.q),
+                 a:c.a||'', choices:c.choices||[], correct:Number(c.correct)||0,
+                 img:(typeof c.img==='string' && c.img) ? c.img : null }));
+    if(!cards.length){ toast('❌ Aucune carte valide.'); return; }
+    store.decks.push({id:uid(), name:(data.name||'Paquet importé'), cards});
+    persist();
+    document.getElementById('importArea').value='';
+    toast('Paquet importé 🎉');
+    UI.goHome();
+  },
+
+  /* ----- jeu ----- */
+  startGame(mode, duration){
+    const d = store.decks.find(x=>x.id===currentDeckId);
+    if(!d || !d.cards.length) return;
+    const queue = shuffle(d.cards.slice());
+    /* temps de réponse choisi (persisté) ; 0 = illimité */
+    const cardTime = readCardTime();
+    if(Number.isNaN(cardTime)) return; /* saisie personnalisée invalide */
+    game = {
+      mode, duration,
+      cardTime,
+      deckName: d.name,
+      queue,
+      revealed:false,
+      current:null,
+      score:0, streak:0, bestStreak:0,
+      correctCount:0, wrongCount:0,
+      startTs: Date.now(),
+      endTs: null,
+      qcmAnswered:false,
+      awaitingAnswer:true
+    };
+    document.getElementById('gameDeckName').textContent = d.name;
+    UI.show('viewGame');
+    UI.nextCard();
+  },
+
+  nextCard(){
+    if(!game.queue.length){
+      game.queue = shuffle(store.decks.find(x=>x.id===currentDeckId).cards.slice());
+    }
+    game.current = game.queue.shift();
+    game.revealed=false;
+    game.qcmAnswered=false;
+    game.awaitingAnswer=true;
+    const f=document.getElementById('flash');
+    f.classList.remove('flipped');
+    document.getElementById('questionText').textContent = game.current.q;
+    /* image de la question (cartes classiques et QCM) */
+    const img=document.getElementById('questionImg');
+    if(game.current.img){
+      img.src=game.current.img;
+      img.classList.remove('hidden');
+    } else {
+      img.removeAttribute('src');
+      img.classList.add('hidden');
+    }
+    document.getElementById('answerText').textContent =
+      game.current.type==='qcm' ? game.current.choices[game.current.correct] : game.current.a;
+    const hint = f.querySelector('.face.front .hint');
+    hint.textContent = game.current.type==='qcm'
+      ? 'Choisis la bonne réponse ci-dessous 👇'
+      : 'Tape ta réponse ci-dessous ✍️';
+    UI.renderAnswerArea();
+    UI.updateStats();
+    UI.startCardTimer();
+  },
+
+  /* ===== Chrono par carte ===== */
+  startCardTimer(){
+    UI.clearCardTimer();
+    if(!game || game.endTs) return;
+    const bar=document.getElementById('timerBar');
+    bar.classList.remove('run','paused');
+    void bar.offsetWidth;
+    if(!game.cardTime){
+      /* illimité : barre pleine, pas de minuteur */
+      bar.style.animation='none';
+      bar.style.transform='scaleX(1)';
+      return;
+    }
+    bar.style.animation='';
+    document.documentElement.style.setProperty('--cardTime', (game.cardTime/1000)+'s');
+    bar.classList.add('run');
+    game.cardTimer = setTimeout(()=>UI.cardTimeout(), game.cardTime);
+  },
+
+  clearCardTimer(){
+    if(game && game.cardTimer){ clearTimeout(game.cardTimer); game.cardTimer=null; }
+    const bar=document.getElementById('timerBar');
+    if(bar) bar.classList.remove('run');
+  },
+
+  /* Temps écoulé : on change de carte sans point gagné ni perdu */
+  cardTimeout(){
+    if(!game || game.endTs || !game.awaitingAnswer) return;
+    game.awaitingAnswer=false;
+    const c=game.current;
+    /* la carte revient dans 3 questions, comme une erreur (non maîtrisée) */
+    game.queue.splice(Math.min(3, game.queue.length), 0, c);
+    toast('⏰ Trop tard ! Carte suivante…');
+    UI.nextCard();
+  },
+
+  /* Zone de réponse : saisie libre (cartes classiques) ou QCM */
+  renderAnswerArea(){
+    const zone=document.getElementById('answerZone');
+    zone.innerHTML='';
+    const c=game.current;
+    if(c.type==='qcm'){
+      const grid=document.createElement('div'); grid.className='choices';
+      shuffle([...c.choices.keys()]).forEach(k=>{
+        const b=document.createElement('button'); b.className='choice'; b.textContent=c.choices[k];
+        b.dataset.k=k;
+        b.onclick=()=>UI.answerQCM(k, b);
+        grid.append(b);
+      });
+      zone.append(grid);
+    } else {
+      const wrap=document.createElement('div'); wrap.className='typedWrap';
+      const inp=document.createElement('input'); inp.type='text'; inp.id='typedInput';
+      inp.placeholder='Écris ta réponse ici…';
+      inp.autocomplete='off'; inp.autocapitalize='off'; inp.spellcheck=false;
+      const ok=document.createElement('button'); ok.className='btn'; ok.id='typedSubmit';
+      ok.textContent='✔ Valider';
+      const go=()=>UI.submitTyped(inp.value);
+      ok.onclick=go;
+      inp.addEventListener('keydown', e=>{
+        if(e.key==='Enter'){ e.preventDefault(); go(); }
+      });
+      wrap.append(inp, ok);
+      zone.append(wrap);
+      setTimeout(()=>inp.focus(), 100);
+    }
+  },
+
+  /* Normalisation : minuscules, sans accents ni ponctuation, espaces resserrés */
+  normalize(s){
+    return String(s).toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/[.,;:!?'"()\-]/g,' ')
+      .replace(/\s+/g,' ').trim();
+  },
+
+  submitTyped(value){
+    if(!game || !game.awaitingAnswer) return;
+    if(!value.trim()){ toast('Écris une réponse d\'abord ✍️'); return; }
+    game.awaitingAnswer=false;
+    UI.clearCardTimer();
+    const good = UI.normalize(value) === UI.normalize(game.current.a);
+    const inp=document.getElementById('typedInput');
+    const btn=document.getElementById('typedSubmit');
+    if(inp) inp.disabled=true;
+    if(btn){ btn.disabled=true; btn.style.filter='grayscale(1)'; btn.style.opacity='.6'; }
+    if(good){
+      /* Bonne réponse : flash vert + confettis + carte suivante immédiate */
+      UI.flashScreen('good');
+      confettiBurst(window.innerWidth/2, window.innerHeight*0.45, 30);
+      setTimeout(()=>UI.answer(true), 400);
+    } else {
+      /* Mauvaise réponse : flash rouge + verso visible 2 s puis carte suivante */
+      UI.flashScreen('bad');
+      document.getElementById('flash').classList.add('shake');
+      setTimeout(()=>{
+        game.revealed=true;
+        document.getElementById('flash').classList.add('flipped');
+        UI.showFeedbackButton();
+        game.feedbackTimer = setTimeout(()=>UI.answer(false), 2000);
+      }, 450);
+    }
+  },
+
+  /* Flash plein écran vert / rouge */
+  flashScreen(kind){
+    const f=document.createElement('div');
+    f.className='screenFlash '+(kind==='good'?'flashGood':'flashBad');
+    document.body.appendChild(f);
+    setTimeout(()=>f.remove(), 600);
+  },
+
+  /* Bouton "Suivant" affiché pendant le feedback d'erreur (auto après 2 s) */
+  showFeedbackButton(){
+    const zone=document.getElementById('answerZone');
+    const bar=document.createElement('div');
+    bar.className='row'; bar.style.justifyContent='center'; bar.style.marginTop='10px';
+    const b=document.createElement('button'); b.className='btn'; b.id='feedbackNext';
+    b.textContent='Suivant ➜';
+    b.style.background='linear-gradient(135deg,#7c3aed,#ec4899)';
+    b.onclick=()=>UI.answer(false);
+    bar.append(b);
+    zone.append(bar);
+  },
+
+  reveal(){
+    if(!game || game.revealed) return;
+    /* En jeu, on doit d'abord répondre : pas de révélation manuelle */
+    if(game.awaitingAnswer) return;
+    game.revealed=true;
+    document.getElementById('flash').classList.add('flipped');
+  },
+
+  answerQCM(k, btn){
+    if(game.qcmAnswered) return;
+    game.qcmAnswered=true;
+    game.awaitingAnswer=false;
+    UI.clearCardTimer();
+    const good = k===game.current.correct;
+    document.querySelectorAll('#answerZone .choice').forEach(b=>{
+      b.disabled=true;
+      if(+b.dataset.k===game.current.correct) b.classList.add('good');
+      else if(b===btn && !good) b.classList.add('bad');
+    });
+    if(good){
+      /* Bonne réponse : flash vert + confettis + carte suivante immédiate */
+      UI.flashScreen('good');
+      confettiBurst(window.innerWidth/2, window.innerHeight*0.45, 30);
+      setTimeout(()=>UI.answer(true), 400);
+    } else {
+      /* Mauvaise réponse : flash rouge + verso visible 2 s puis carte suivante */
+      UI.flashScreen('bad');
+      document.getElementById('flash').classList.add('shake');
+      setTimeout(()=>{
+        game.revealed=true;
+        document.getElementById('flash').classList.add('flipped');
+        UI.showFeedbackButton();
+        game.feedbackTimer = setTimeout(()=>UI.answer(false), 2000);
+      }, 450);
+    }
+  },
+
+  /* règle de placement : erreur → revient dans 3 questions ; juste → au fond du paquet */
+  answer(correct){
+    if(!game || game.qcmPending) return;
+    if(game.feedbackTimer){ clearTimeout(game.feedbackTimer); game.feedbackTimer=null; }
+    UI.clearCardTimer();
+    const c=game.current;
+    if(correct){
+      game.queue.push(c);              // fond du paquet
+      game.score++; game.streak++;
+      game.correctCount++;
+      if(game.streak>game.bestStreak) game.bestStreak=game.streak;
+    } else {
+      const pos=Math.min(3, game.queue.length);
+      game.queue.splice(pos,0,c);      // revient dans 3 questions
+      game.wrongCount++;
+      game.streak=0;
+      if(game.mode==='survie'){        // mode 1 : une erreur = fin
+        return UI.endGame();
+      }
+      game.score=0;                    // mode 2 : perte de tous les points
+    }
+    UI.nextCard();
+  },
+
+  updateStats(){
+    document.getElementById('statRemaining').textContent = game.queue.length;
+    document.getElementById('statScore').textContent = game.score;
+    document.getElementById('statStreak').textContent = game.streak;
+  },
+
+  endGame(){
+    game.endTs = Date.now();
+    UI.clearCardTimer();
+    if(game.feedbackTimer){ clearTimeout(game.feedbackTimer); game.feedbackTimer=null; }
+    const elapsed = Math.max(0, Math.round((game.endTs - game.startTs)/1000));
+    const t=document.getElementById('resultTitle');
+    const e=document.getElementById('resultEmoji');
+    const s=document.getElementById('resultStats');
+
+    if(game.mode==='survie'){
+      t.textContent = game.wrongCount ? '💥 Perdu !' : '🏆 Gagné !';
+      e.textContent = game.correctCount>=10 ? '🏆' : game.correctCount>=5 ? '🥈' : '💪';
+      s.innerHTML = `Cartes réussies : <b>${game.correctCount}</b> &nbsp;·&nbsp; Temps : <b>${fmt(elapsed)}</b> &nbsp;·&nbsp; Meilleure série : <b>${game.bestStreak}</b>`;
+    } else {
+      t.textContent = game.score>=10 ? '🎉 Super score !' : '⏱️ Temps écoulé !';
+      e.textContent = game.score>=10 ? '🎉' : game.score>=5 ? '👏' : '🌱';
+      s.innerHTML = `Score final : <b>${game.score}</b> &nbsp;·&nbsp; Bonnes réponses : <b>${game.correctCount}</b> &nbsp;·&nbsp; Erreurs : <b>${game.wrongCount}</b>`;
+    }
+
+    /* Enregistrement du résultat dans l'historique du paquet */
+    if(!store.stats[currentDeckId]) store.stats[currentDeckId]=[];
+    store.stats[currentDeckId].push({
+      date: new Date().toISOString(),
+      mode: game.mode,
+      score: game.mode==='survie' ? game.correctCount : game.score,
+      correct: game.correctCount,
+      wrong: game.wrongCount,
+      time: elapsed,
+      deckSize: store.decks.find(d=>d.id===currentDeckId).cards.length
+    });
+    persist();
+
+    UI.renderProgress();
+    UI.show('viewResult');
+
+    /* ===== SUPER FIESTA ===== */
+    const finalScore = game.mode==='survie' ? game.correctCount : game.score;
+    const resultPanel=document.getElementById('viewResult');
+    resultPanel.classList.remove('bounceIn');
+    void resultPanel.offsetWidth;
+    resultPanel.classList.add('bounceIn');
+    const emojiEl=document.getElementById('resultEmoji');
+    emojiEl.classList.add('wiggle');
+    setTimeout(()=>emojiEl.classList.remove('wiggle'), 3000);
+    bigFiesta(finalScore);
+    /* salves supplémentaires pour les très bons scores */
+    if(finalScore>=15) setTimeout(()=>confettiBurst(window.innerWidth/2, window.innerHeight/2, 100), 1500);
+  },
+
+  /* ----- tableau des scores & progression ----- */
+  renderProgress(){
+    const hist = store.stats[currentDeckId] || [];
+    const sum=document.getElementById('progressSummary');
+    const chart=document.getElementById('progressChart');
+    const msg=document.getElementById('evolutionMsg');
+    const table=document.getElementById('historyTable');
+
+    if(!hist.length){
+      sum.innerHTML=''; chart.innerHTML=''; table.innerHTML='';
+      msg.innerHTML='<span style="color:var(--muted)">Joue une partie pour démarrer ton historique ! 🚀</span>';
+      return;
+    }
+
+    const scores = hist.map(h=>h.score);
+    const best = Math.max(...scores);
+    const avg = (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1);
+
+    sum.innerHTML = `
+      <span class="badge" style="background:linear-gradient(135deg,#f59e0b,#ef4444);">🏆 Record : ${best}</span>
+      <span class="badge" style="background:#1f2937;">📈 Moyenne : ${avg}</span>
+      <span class="badge" style="background:linear-gradient(135deg,#10b981,#059669);">🎮 Parties : ${hist.length}</span>`;
+
+    /* Graphique en barres : 10 dernières parties */
+    chart.innerHTML='';
+    const last = hist.slice(-10);
+    const max = Math.max(...last.map(h=>h.score), 1);
+    last.forEach(h=>{
+      const col=document.createElement('div');
+      col.style.cssText='display:flex; flex-direction:column; align-items:center; gap:4px; width:38px; height:100%; justify-content:flex-end;';
+      const bar=document.createElement('div');
+      const hpx = Math.max(6, Math.round((h.score/max)*80));
+      const isLast = h===last[last.length-1];
+      bar.style.cssText=`width:26px; height:${hpx}px; border-radius:6px 6px 0 0;
+        background:${isLast?'linear-gradient(135deg,#7c3aed,#ec4899)':'#c7bdf4'};
+        box-shadow:${isLast?'0 4px 12px rgba(124,58,237,.4)':'none'};
+        transition:height .4s;`;
+      const lbl=document.createElement('div');
+      lbl.style.cssText='font-size:.7rem; font-weight:800; color:var(--muted);';
+      lbl.textContent=h.score;
+      col.append(lbl, bar);
+      col.title = `${h.mode==='survie'?'Survie':'Chrono'} — ${h.score} pts`;
+      chart.append(col);
+    });
+
+    /* Message d'évolution */
+    if(hist.length>=2){
+      const cur=hist[hist.length-1].score, prev=hist[hist.length-2].score;
+      const diff=cur-prev;
+      msg.innerHTML = diff>0
+        ? `<span style="color:var(--good)">📈 En progrès : +${diff} par rapport à la partie précédente !</span>`
+        : diff<0
+          ? `<span style="color:var(--bad)">📉 Un petit creux : ${diff} — tu vas te rattraper ! 💪</span>`
+          : `<span style="color:var(--muted)">➖ Stable — essaie de battre ton record (${best}) !</span>`;
+      if(cur>best) msg.innerHTML = `<span style="color:var(--good)">🏆 Nouveau record battu ! 🎉</span>`;
+    } else {
+      msg.innerHTML = `<span style="color:var(--muted)">Première partie enregistrée — la progression arrive ! 🌱</span>`;
+    }
+
+    /* Tableau des scores (10 dernières parties, plus récentes en haut) */
+    const rows = hist.slice(-10).reverse().map((h,i)=>{
+      const d=new Date(h.date);
+      const dtxt = d.toLocaleDateString('fr-FR')+' '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+      const stars = h.score===best ? ' ⭐' : '';
+      return `<tr>
+        <td>${hist.length-i}</td>
+        <td>${h.mode==='survie'?'⚡ Survie':'⏱️ Chrono'}</td>
+        <td><b>${h.score}${stars}</b></td>
+        <td style="color:var(--good);">${h.correct}</td>
+        <td style="color:var(--bad);">${h.wrong}</td>
+        <td>${fmt(h.time)}</td>
+        <td>${dtxt}</td>
+      </tr>`;
+    }).join('');
+    table.innerHTML = `
+      <table style="width:100%; border-collapse:collapse; font-size:.85rem;">
+        <thead>
+          <tr style="background:#f3f0ff;">
+            <th style="padding:8px;">#</th><th style="padding:8px;">Mode</th>
+            <th style="padding:8px;">Score</th><th style="padding:8px;">✅</th>
+            <th style="padding:8px;">❌</th><th style="padding:8px;">⏱</th>
+            <th style="padding:8px;">Date</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  },
+
+  resetScores(){
+    if(!confirm('Effacer tout l\'historique des scores de ce paquet ? Cette action est définitive.')) return;
+    delete store.stats[currentDeckId];
+    persist();
+    toast('Scores réinitialisés ♻️');
+    UI.renderProgress();
+  },
+
+  quitGame(){
+    if(game && game.mode==='chrono' && !game.endTs && game.correctCount+game.wrongCount>0){
+      if(!confirm('Quitter la partie en cours ?')) return;
+    }
+    if(game){
+      UI.clearCardTimer();
+      if(game.feedbackTimer){ clearTimeout(game.feedbackTimer); game.feedbackTimer=null; }
+    }
+    game=null;
+    UI.goHome();
+  },
+
+  replay(){ UI.openMode(currentDeckId); }
+};
+
+let editorCards = [];
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function fmt(sec){ return String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0'); }
+function readCardTime(){
+  const sel=document.getElementById('cardTimeSelect');
+  const inp=document.getElementById('cardTimeCustom');
+  let ms;
+  if(sel && sel.value==='custom'){
+    const sec=Math.round(Number(inp && inp.value));
+    if(!sec || sec<1 || sec>300){ toast('Entre un temps entre 1 et 300 secondes ⏱️'); return NaN; }
+    ms=sec*1000;
+    store.lastCardTime={type:'custom', sec};
+  } else {
+    ms=Number(sel && sel.value)||0;
+    store.lastCardTime={type:'preset', value:sel.value};
+  }
+  return ms;
+}
+function restoreCardTime(){
+  const sel=document.getElementById('cardTimeSelect');
+  const inp=document.getElementById('cardTimeCustom');
+  if(!sel) return;
+  const saved=store.lastCardTime;
+  if(saved && saved.type==='custom' && saved.sec){
+    sel.value='custom';
+    if(inp){ inp.value=saved.sec; inp.classList.remove('hidden'); }
+  } else {
+    sel.value = (saved && saved.value) || '3000';
+    if(inp) inp.classList.add('hidden');
+  }
+}
+/* affiche/masque le champ personnalisé selon le choix */
+document.addEventListener('change', e=>{
+  if(e.target && e.target.id==='cardTimeSelect'){
+    const inp=document.getElementById('cardTimeCustom');
+    inp.classList.toggle('hidden', e.target.value!=='custom');
+    if(e.target.value==='custom') inp.focus();
+  }
+});
+
+/* chrono + raccourcis clavier */
+setInterval(()=>{
+  if(!game) return;
+  const el=document.getElementById('gameTimer');
+  if(el && !document.getElementById('viewGame').classList.contains('hidden')){
+    if(game.mode==='chrono'){
+      const left = game.duration - Math.floor((Date.now()-game.startTs)/1000);
+      el.textContent = '⏱ '+fmt(Math.max(0,left));
+      if(left<=0) UI.endGame();
+    } else {
+      el.textContent = '⏱ '+fmt(Math.floor((Date.now()-game.startTs)/1000));
+    }
+  }
+}, 250);
+
+document.addEventListener('keydown', e=>{
+  if(document.getElementById('viewGame').classList.contains('hidden')) return;
+  const tag=(e.target.tagName||'').toLowerCase();
+  if(tag==='input' || tag==='textarea') return; // laisse la saisie tranquille
+  if(e.code==='Space'){ e.preventDefault(); UI.reveal(); }
+});
+
+UI.renderDecks();
+</script>
+</body>
+</html>

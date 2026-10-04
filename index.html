@@ -93,6 +93,19 @@
   }
   .shake{animation:shake .4s;}
   @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+
+  /* ===== VIBRATION DE L'ÉCRAN (mauvaise réponse) ===== */
+  .screenShake{
+    position:fixed; inset:0; z-index:250; pointer-events:none;
+    animation:screenVibrate .5s cubic-bezier(.36,.07,.19,.97);
+    box-shadow:inset 0 0 60px rgba(239,68,68,.35);
+  }
+  @keyframes screenVibrate{
+    10%, 90%{transform:translate(-3px, 1px)}
+    20%, 80%{transform:translate(5px, -2px)}
+    30%, 50%, 70%{transform:translate(-7px, 2px)}
+    40%, 60%{transform:translate(7px, -1px)}
+  }
   .cardRow{display:flex; gap:8px; align-items:flex-start; padding:10px; border-bottom:1px solid #f1eefb;}
   .cardRow .txt{flex:1;}
   .cardRow .txt small{color:var(--muted);}
@@ -131,6 +144,13 @@
     border-radius:16px; padding:10px 16px; overflow-wrap:anywhere;
   }
   #viewGame #answerZone{flex:1; display:flex; flex-direction:column; min-height:0;}
+
+  /* ===== SIGNATURE ===== */
+  .credits{
+    position:fixed; bottom:10px; right:14px; z-index:150;
+    font-size:.75rem; font-weight:600; color:rgba(255,255,255,.9);
+    text-shadow:0 1px 4px rgba(0,0,0,.35); pointer-events:none;
+  }
   #viewGame .typedWrap{flex:1; align-items:flex-start; justify-content:center; margin-top:12px;}
   #viewGame .typedWrap input[type=text]{max-width:560px; font-size:1.15rem;}
 
@@ -210,6 +230,7 @@
 </style>
 </head>
 <body>
+<div class="credits">Développé par <b>Fabien CLEMENTE</b> avec l'assistance de <b>Vibe</b></div>
 <div id="confettiLayer"></div>
 
 
@@ -890,6 +911,15 @@ const UI = {
     f.className='screenFlash '+(kind==='good'?'flashGood':'flashBad');
     document.body.appendChild(f);
     setTimeout(()=>f.remove(), 600);
+    /* Vibration de l'écran sur mauvaise réponse */
+    if(kind==='bad'){
+      const v=document.createElement('div');
+      v.className='screenShake';
+      document.body.appendChild(v);
+      setTimeout(()=>v.remove(), 550);
+      /* vibration matérielle si disponible (mobile) */
+      if(navigator.vibrate) navigator.vibrate(150);
+    }
   },
 
   /* Bouton "Suivant" affiché pendant le feedback d'erreur (auto après 2 s) */
